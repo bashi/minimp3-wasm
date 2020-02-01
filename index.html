@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <script type="module" src="index.js"></script>
+  <title>minimp3 Wasm without Emscripten demo</title>
+</head>
+
+<body>
+  <style>
+    #wave-container {
+      margin-top: 16px;
+      margin-bottom: 16px;
+      position: relative;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+    }
+
+    #wave-canvas {
+      width: 100%;
+      height: 200px;
+      border: 1px solid #aaa;
+      border-radius: 2px;
+      background-color: white;
+      z-index: 1;
+    }
+
+    #position-bar {
+      position: absolute;
+      background-color: transparent;
+      border-left: 1px solid #888;
+      height: 200px;
+      z-index: 2;
+    }
+
+    #seek-range {
+      width: 100%;
+    }
+  </style>
+
+  <div>
+    <div id="wave-container">
+      <canvas id="wave-canvas"></canvas>
+      <div id="position-bar"></div>
+    </div>
+
+    <input type="range" id="seek-range" value="0">
+    <button id="play-button">Play current decoded samples</button>
+    <button id="stop-button">Stop playback</button>
+  </div>
+</body>
+
+</html>
