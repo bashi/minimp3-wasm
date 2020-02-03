@@ -1,4 +1,4 @@
-import Decoder from "./out/decoder.min.js";
+import Decoder from "./decoder.js";
 
 async function instantiate() {
   const res = await fetch("out/decoder.opt.wasm");
@@ -58,11 +58,26 @@ class WaveCanvas {
   }
 }
 
+function toMonoPcm(decodeResults) {
+  if (decodeResults.numChannels === 1) {
+    return decodeResults.pcm;
+  }
+  const length = Math.floor(
+    decodeResults.pcm.length / decodeResults.numChannels
+  );
+  const pcm = new Int16Array(length);
+  for (let i = 0, j = 0; i < length; i++ , j += decodeResults.numChannels) {
+    pcm[i] = decodeResults.pcm[j];
+  }
+  return pcm;
+}
+
 async function main() {
   window.wasmInstance = await instantiate();
 
   const data = await fetchTestData();
   window.decoder = new Decoder(wasmInstance, data);
+
   const canvas = document.getElementById("wave-canvas");
   window.waveCanvas = new WaveCanvas(canvas);
 
@@ -70,8 +85,10 @@ async function main() {
 
   function decodeAndDrawWave() {
     const results = decoder.decode(DURATION_TO_DECODE);
-    waveCanvas.drawPcm(results.pcm);
+    const pcm = toMonoPcm(results);
+    waveCanvas.drawPcm(pcm);
     window.decodeResults = results;
+    window.monoPcm = pcm;
   }
 
   // Position
@@ -91,12 +108,12 @@ async function main() {
 
     const buffer = audioCtx.createBuffer(
       1,
-      decodeResults.numSamples,
+      decodeResults.totalNumSamples,
       decodeResults.samplingRate
     );
     const channelData = buffer.getChannelData(0);
-    for (let i = 0; i < decodeResults.numSamples; i++) {
-      const v = decodeResults.pcm[i];
+    for (let i = 0; i < decodeResults.totalNumSamples; i++) {
+      const v = window.monoPcm[i];
       channelData[i] = v >= 0x8000 ? -(0x10000 - v) / 0x8000 : v / 0x7fff;
     }
 
