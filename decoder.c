@@ -29,9 +29,9 @@ void grow_memory_if_needed(size_t required_bytes) {
 
 typedef struct decode_results {
   size_t num_channels;
-  size_t num_samples_per_frame;
-  size_t total_num_samples;
-  size_t num_bytes;
+  size_t num_samples_per_frame;  // Not needed?
+  size_t total_num_samples;      // Channel included.
+  size_t num_bytes;              // Not needed?
   size_t num_frames;
   int sampling_rate;
   double duration;
@@ -134,7 +134,7 @@ void seek_internal(const uint8_t *mp3_data,
                    decode_results_t *out) {
   size_t num_bytes = 0;
   double duration = 0.0;
-  size_t total_num_samples = 0;
+  size_t num_samples = 0;
   size_t num_samples_per_frame = 0;
   int sampling_rate = 0;
   size_t num_channels = 0;
@@ -153,6 +153,14 @@ void seek_internal(const uint8_t *mp3_data,
       // Insufficient data
       break;
     }
+
+    double advance_in_seconds = (double)samples / (double)frame.hz;
+    if (target_duration_in_seconds >= 0.0 &&
+        duration + advance_in_seconds >= target_duration_in_seconds)
+      break;
+    duration += advance_in_seconds;
+
+    samples *= frame.channels;
 
     if (num_samples_per_frame == 0) {
       num_samples_per_frame = samples;
@@ -175,18 +183,12 @@ void seek_internal(const uint8_t *mp3_data,
       break;
     }
 
-    double advance_in_seconds = (double)samples / (double)frame.hz;
-    if (target_duration_in_seconds >= 0.0 &&
-        duration + advance_in_seconds >= target_duration_in_seconds)
-      break;
-    duration += advance_in_seconds;
-
     num_bytes += frame.frame_bytes;
-    total_num_samples += samples;
+    num_samples += samples;
     num_frames += 1;
   }
 
-  out->total_num_samples = total_num_samples;
+  out->total_num_samples = num_samples;
   out->num_samples_per_frame = num_samples_per_frame;
   out->num_bytes = num_bytes;
   out->num_frames = num_frames;
@@ -212,14 +214,14 @@ void decode_internal(const uint8_t *mp3_data,
                      decode_results_t *out) {
   size_t num_bytes = 0;
   double duration = 0.0;
-  size_t total_num_samples = 0;
+  size_t num_samples = 0;
   size_t num_samples_per_frame = 0;
   int sampling_rate = 0;
   size_t num_channels = 0;
   size_t num_frames = 0;
   mp3d_sample_t *pcm = (mp3d_sample_t *)pcm_data_base();
 
-  while (num_bytes < mp3_data_size && total_num_samples < target_num_samples) {
+  while (num_bytes < mp3_data_size && num_samples < target_num_samples) {
     mp3dec_frame_info_t frame;
     int samples = mp3dec_decode_frame(&g_decoder.mp3d, mp3_data + num_bytes,
                                       mp3_data_size - num_bytes, pcm, &frame);
@@ -232,6 +234,11 @@ void decode_internal(const uint8_t *mp3_data,
       // Insufficient data
       break;
     }
+
+    double advance_in_seconds = (double)samples / (double)frame.hz;
+    duration += advance_in_seconds;
+
+    samples *= frame.channels;
 
     if (num_samples_per_frame == 0) {
       num_samples_per_frame = samples;
@@ -254,16 +261,13 @@ void decode_internal(const uint8_t *mp3_data,
       break;
     }
 
-    double advance_in_seconds = (double)samples / (double)frame.hz;
-    duration += advance_in_seconds;
-
     num_bytes += frame.frame_bytes;
-    total_num_samples += samples;
+    num_samples += samples;
     pcm += samples;
     num_frames += 1;
   }
 
-  out->total_num_samples = total_num_samples;
+  out->total_num_samples = num_samples;
   out->num_samples_per_frame = num_samples_per_frame;
   out->num_bytes = num_bytes;
   out->num_frames = num_frames;

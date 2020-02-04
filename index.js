@@ -66,7 +66,7 @@ function toMonoPcm(decodeResults) {
     decodeResults.pcm.length / decodeResults.numChannels
   );
   const pcm = new Int16Array(length);
-  for (let i = 0, j = 0; i < length; i++ , j += decodeResults.numChannels) {
+  for (let i = 0, j = 0; i < length; i++, j += decodeResults.numChannels) {
     pcm[i] = decodeResults.pcm[j];
   }
   return pcm;
@@ -108,11 +108,11 @@ async function main() {
 
     const buffer = audioCtx.createBuffer(
       1,
-      decodeResults.totalNumSamples,
+      decodeResults.totalNumSamples / decodeResults.numChannels,
       decodeResults.samplingRate
     );
     const channelData = buffer.getChannelData(0);
-    for (let i = 0; i < decodeResults.totalNumSamples; i++) {
+    for (let i = 0; i < window.monoPcm.length; i++) {
       const v = window.monoPcm[i];
       channelData[i] = v >= 0x8000 ? -(0x10000 - v) / 0x8000 : v / 0x7fff;
     }
