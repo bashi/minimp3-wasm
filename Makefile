@@ -1,3 +1,5 @@
+all: out/decoder.opt.wasm out/decoder.opt.wasm
+
 out/decoder.opt.wasm: out/decoder.wasm
 	wasm-opt -Os out/decoder.wasm -o out/decoder.opt.wasm
 
