@@ -90,7 +90,6 @@ class DecodedSamplesPlayer {
     for (let i = 0; i < this.pcm.length; i++) {
       const v = this.pcm[i];
       channelData[i] = v >= 32768 ? -(65536 - v) / 32768 : v / 32767;
-      // channelData[i] = v >= 0x8000 ? -(0x10000 - v) / 0x8000 : v / 0x7fff;
     }
 
     this.source = ctx.createBufferSource();
@@ -135,6 +134,13 @@ class App {
     // Play button
     document.getElementById('play-button').addEventListener('click', _ => {
       this._togglePlaying();
+    });
+
+    // File input
+    const fileInput = document.getElementById('select-file');
+    fileInput.addEventListener('change', async e => {
+      const mp3 = await fileToUint8Array(e.target.files[0]);
+      this.setMp3(mp3);
     });
 
     // Drag & drop
@@ -225,19 +231,9 @@ async function instantiate() {
   return wasm.instance.exports;
 }
 
-async function fetchTestData() {
-  const res = await fetch("testdata/test3.mp3");
-  const buffer = await res.arrayBuffer();
-  const data = new Uint8Array(buffer);
-  return data;
-}
-
 async function main() {
   const wasmInstance = await instantiate();
-  const mp3 = await fetchTestData();
   const app = new App(wasmInstance);
-  app.setMp3(mp3);
-
   window.app = app;
 }
 

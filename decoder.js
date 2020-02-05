@@ -64,17 +64,4 @@ export default class Decoder {
   currentTime() {
     return this.wasm.decoder_current_time();
   }
-
-  // TODO: Remove.
-  status() {
-    const status = {
-      mp3_data_offset: this.wasm.decoder_mp3_data_offset(),
-      decoder_mp3_data_size: this.wasm.decoder_mp3_data_size(),
-      decoder_pcm_data_offset: this.wasm.decoder_pcm_data_offset(),
-      decoder_pcm_data_size: this.wasm.decoder_pcm_data_size(),
-      decoder_byte_offset: this.wasm.decoder_byte_offset(),
-      decoder_current_time: this.wasm.decoder_current_time(),
-    };
-    console.table(status);
-  }
 }
