@@ -116,19 +116,26 @@ class App {
   constructor(wasm) {
     this.wasm = wasm;
 
-    this.durationToDecode = 10;
-
     this.canvas = document.getElementById('wave-canvas');
     this.positionBar = document.getElementById('position-bar');
     this.seekRange = document.getElementById('seek-range');
+    this.decodeDurationRange = document.getElementById('decode-duration-range');
 
-    // Seek Range
+    // Seek range
     this.seekRange.addEventListener('change', _ => {
       if (this.player) {
         this.player.stop();
       }
-      this._seek(this.seekRange.value);
-      this._decode(this.durationToDecode);
+      this._seek();
+      this._decode();
+    });
+
+    // Decode duration range
+    this.decodeDurationRange.addEventListener('change', _ => {
+      if (this.player) {
+        this.player.stop();
+      }
+      this._decode();
     });
 
     // Play button
@@ -169,22 +176,40 @@ class App {
     this._setBarPosition(0);
 
     this.decoder = new Decoder(this.wasm, mp3);
+
+    this.decodeDurationRange.min = 1;
+    this.decodeDurationRange.max = Math.min(60, this.decoder.duration);
+    this.decodeDurationRange.value = 10;
+
     this.seekRange.min = 0;
-    this.seekRange.max = this.decoder.duration - this.durationToDecode;
+    this.seekRange.max = this.decoder.duration - this._durationToDecode();
     this.seekRange.value = 0;
-    this._decode(this.durationToDecode);
+
+    this._decode();
   }
 
-  _seek(duration) {
+  _seek() {
+    if (!this.decoder) {
+      return;
+    }
+    const duration = parseFloat(this.seekRange.value);
     this.decoder.seek(duration);
-    this._setBarPosition(0);
   }
 
-  _decode(duration) {
+  _decode() {
+    if (!this.decoder) {
+      return;
+    }
+    this._setBarPosition(0);
+    const duration = this._durationToDecode();
     this.decoded = this.decoder.decode(duration);
     this.mono = toMonoPcm(this.decoded.pcm, this.decoded.numChannels);
     this.player = new DecodedSamplesPlayer(this.mono, this.decoded.samplingRate);
     drawPcm(this.canvas, this.mono);
+  }
+
+  _durationToDecode() {
+    return parseFloat(this.decodeDurationRange.value);
   }
 
   _togglePlaying() {
@@ -208,7 +233,7 @@ class App {
       if (!this.player.isPlaying()) return;
 
       const elapsed = performance.now() - startTime;
-      const r = elapsed / (this.durationToDecode * 1000.0);
+      const r = elapsed / (this._durationToDecode() * 1000.0);
 
       const cs = getComputedStyle(this.canvas);
       const width = parseFloat(cs.width);
