@@ -1,17 +1,18 @@
 import Decoder from "./decoder.js";
 
-async function instantiate() {
-  const res = await fetch("out/decoder.opt.wasm");
-  const buffer = await res.arrayBuffer();
-  const wasm = await WebAssembly.instantiate(buffer, {});
-  return wasm.instance.exports;
-}
-
-async function fetchTestData() {
-  const res = await fetch("testdata/test3.mp3");
-  const buffer = await res.arrayBuffer();
-  const data = new Uint8Array(buffer);
-  return data;
+/**
+ * @param {File} file
+ * @returns {Promise<Uint8Array>} data
+ */
+async function fileToUint8Array(file) {
+  const reader = new FileReader();
+  const promise = new Promise((resolve, reject) => {
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = e => reject(e);
+  });
+  reader.readAsArrayBuffer(file);
+  const buf = await promise;
+  return new Uint8Array(buf);
 }
 
 /**
@@ -113,23 +114,21 @@ class DecodedSamplesPlayer {
 }
 
 class App {
-  constructor(wasmInstance, mp3) {
-    this.decoder = new Decoder(wasmInstance, mp3);
+  constructor(wasm) {
+    this.wasm = wasm;
+
     this.durationToDecode = 10;
 
     this.canvas = document.getElementById('wave-canvas');
     this.positionBar = document.getElementById('position-bar');
+    this.seekRange = document.getElementById('seek-range');
 
     // Seek Range
-    const seekRange = document.getElementById('seek-range');
-    seekRange.min = 0;
-    seekRange.max = this.decoder.duration - this.durationToDecode;
-    seekRange.addEventListener('change', _ => {
+    this.seekRange.addEventListener('change', _ => {
       if (this.player) {
         this.player.stop();
       }
-
-      this._seek(seekRange.value);
+      this._seek(this.seekRange.value);
       this._decode(this.durationToDecode);
     });
 
@@ -137,6 +136,37 @@ class App {
     document.getElementById('play-button').addEventListener('click', _ => {
       this._togglePlaying();
     });
+
+    // Drag & drop
+    const el = document.getElementById('app-container');
+    const prevent = e => {
+      e.stopPropagation();
+      e.preventDefault();
+    };
+    el.addEventListener('dragenter', prevent);
+    el.addEventListener('dragover', prevent);
+    el.addEventListener('dragleave', prevent);
+    el.addEventListener('drop', async e => {
+      prevent(e);
+      const mp3 = await fileToUint8Array(e.dataTransfer.files[0]);
+      this.setMp3(mp3);
+    });
+  }
+
+  /**
+   * @param {Uint8Array} mp3 MP3 data
+   */
+  setMp3(mp3) {
+    if (this.player) {
+      this.player.stop();
+    }
+    this._setBarPosition(0);
+
+    this.decoder = new Decoder(this.wasm, mp3);
+    this.seekRange.min = 0;
+    this.seekRange.max = this.decoder.duration - this.durationToDecode;
+    this.seekRange.value = 0;
+    this._decode(this.durationToDecode);
   }
 
   _seek(duration) {
@@ -154,7 +184,7 @@ class App {
   _togglePlaying() {
     if (!this.player) return;
     if (!this.audioCtx) {
-      this.audioCtx = new AudioContext();
+      this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
     if (this.player.isPlaying()) {
       this.player.stop();
@@ -188,12 +218,27 @@ class App {
   }
 }
 
+async function instantiate() {
+  const res = await fetch("out/decoder.opt.wasm");
+  const buffer = await res.arrayBuffer();
+  const wasm = await WebAssembly.instantiate(buffer, {});
+  return wasm.instance.exports;
+}
+
+async function fetchTestData() {
+  const res = await fetch("testdata/test3.mp3");
+  const buffer = await res.arrayBuffer();
+  const data = new Uint8Array(buffer);
+  return data;
+}
+
 async function main() {
   const wasmInstance = await instantiate();
   const mp3 = await fetchTestData();
-  window.app = new App(wasmInstance, mp3);
+  const app = new App(wasmInstance);
+  app.setMp3(mp3);
 
-  app._decode(5);
+  window.app = app;
 }
 
 document.addEventListener('DOMContentLoaded', _ => main());
