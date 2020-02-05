@@ -112,10 +112,15 @@ class DecodedSamplesPlayer {
   }
 }
 
-class App {
-  constructor(wasm) {
-    this.wasm = wasm;
+async function instantiateWasm() {
+  const res = await fetch("out/decoder.opt.wasm");
+  const buffer = await res.arrayBuffer();
+  const wasm = await WebAssembly.instantiate(buffer, {});
+  return wasm.instance.exports;
+}
 
+class App {
+  constructor() {
     this.canvas = document.getElementById('wave-canvas');
     this.positionBar = document.getElementById('position-bar');
     this.seekRange = document.getElementById('seek-range');
@@ -147,7 +152,7 @@ class App {
     const fileInput = document.getElementById('select-file');
     fileInput.addEventListener('change', async e => {
       const mp3 = await fileToUint8Array(e.target.files[0]);
-      this.setMp3(mp3);
+      await this.setMp3(mp3);
     });
 
     // Drag & drop
@@ -162,20 +167,21 @@ class App {
     el.addEventListener('drop', async e => {
       prevent(e);
       const mp3 = await fileToUint8Array(e.dataTransfer.files[0]);
-      this.setMp3(mp3);
+      await this.setMp3(mp3);
     });
   }
 
   /**
    * @param {Uint8Array} mp3 MP3 data
    */
-  setMp3(mp3) {
+  async setMp3(mp3) {
     if (this.player) {
       this.player.stop();
     }
     this._setBarPosition(0);
 
-    this.decoder = new Decoder(this.wasm, mp3);
+    const wasm = await instantiateWasm();
+    this.decoder = new Decoder(wasm, mp3);
 
     this.decodeDurationRange.min = 1;
     this.decodeDurationRange.max = Math.min(60, this.decoder.duration);
@@ -249,15 +255,8 @@ class App {
   }
 }
 
-async function instantiate() {
-  const res = await fetch("out/decoder.opt.wasm");
-  const buffer = await res.arrayBuffer();
-  const wasm = await WebAssembly.instantiate(buffer, {});
-  return wasm.instance.exports;
-}
-
 async function main() {
-  const wasmInstance = await instantiate();
+  const wasmInstance = await instantiateWasm();
   const app = new App(wasmInstance);
   window.app = app;
 }
