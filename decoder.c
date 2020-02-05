@@ -46,17 +46,21 @@ extern unsigned char __heap_base;
 
 const size_t WASM_PAGE_SIZE = 1024 * 64;
 
-size_t heap_size() {
+static size_t heap_size() {
   uintptr_t heap_base = (uintptr_t)&__heap_base;
   return __builtin_wasm_memory_size(0) * WASM_PAGE_SIZE - heap_base;
 }
 
-void grow_memory_if_needed(size_t required_bytes) {
+static void grow_memory_if_needed(size_t required_bytes) {
   size_t current_byte_size = heap_size();
   if (current_byte_size < required_bytes) {
     int num_pages = (required_bytes - current_byte_size) / WASM_PAGE_SIZE + 1;
     __builtin_wasm_memory_grow(0, num_pages);
   }
+}
+
+static size_t roundup(size_t sz) {
+  return (sz + 3) & ~3;
 }
 
 // Decode results
@@ -113,7 +117,8 @@ size_t decoder_mp3_data_size() {
 
 WASM_EXPORT
 void decoder_set_mp3_data_size(size_t size) {
-  grow_memory_if_needed(size);
+  size_t aligned = roundup(size);
+  grow_memory_if_needed(aligned);
 
   g_decoder.mp3_data_size = size;
   g_decoder.pcm_data_size = 0;
@@ -124,7 +129,7 @@ void decoder_set_mp3_data_size(size_t size) {
 
 WASM_EXPORT
 const uint8_t *decoder_pcm_data_offset() {
-  return decoder_mp3_data_offset() + g_decoder.mp3_data_size;
+  return decoder_mp3_data_offset() + roundup(g_decoder.mp3_data_size);
 }
 
 WASM_EXPORT
@@ -137,12 +142,12 @@ double decoder_current_time() {
   return g_decoder.current_time;
 }
 
-void seek_internal(const uint8_t *mp3,
-                   size_t mp3_bytes,
-                   double target_duration_in_seconds,
-                   decode_results_t *results,
-                   size_t *num_bytes,
-                   double *actual_duration) {
+static void seek_internal(const uint8_t *mp3,
+                          size_t mp3_bytes,
+                          double target_duration_in_seconds,
+                          decode_results_t *results,
+                          size_t *num_bytes,
+                          double *actual_duration) {
   memset(results, 0, sizeof(decode_results_t));
   *num_bytes = 0;
   *actual_duration = 0.0;
@@ -202,9 +207,9 @@ void decoder_seek(double position_in_seconds) {
   g_decoder.current_time = duration;
 }
 
-void decode_internal(const uint8_t *mp3,
-                     size_t mp3_bytes,
-                     decode_results_t *results) {
+static void decode_internal(const uint8_t *mp3,
+                            size_t mp3_bytes,
+                            decode_results_t *results) {
   mp3dec_frame_info_t frame;
   int samples;
   size_t num_bytes = 0;
@@ -236,7 +241,7 @@ void decoder_decode(double duration_in_seconds) {
 
   // Allocate memory for PCM.
   size_t pcm_data_size = results.num_samples * sizeof(mp3d_sample_t);
-  size_t required_bytes = decoder_mp3_data_size() + pcm_data_size;
+  size_t required_bytes = roundup(decoder_mp3_data_size() + pcm_data_size);
   grow_memory_if_needed(required_bytes);
   g_decoder.pcm_data_size = pcm_data_size;
 
