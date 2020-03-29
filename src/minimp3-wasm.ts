@@ -1,9 +1,21 @@
-export default class Decoder {
+export interface DecodeResult {
+  pcm: Int16Array,
+  startTime: number,
+  duration: number,
+  samplingRate: number,
+  numChannels: number,
+  numSamples: number,
+}
+
+export class Decoder {
+  private wasm: Record<string, any>;
+  public duration: number;
+
   /**
-   * @param {WebAssembly.ExportValue} wasm WebAssembly instance from decoder.wasm.
+   * @param {Record<String, any>} wasm WebAssembly exports.
    * @param {Uint8Array} data MP3 data to decode.
    */
-  constructor(wasm, data) {
+  constructor(wasm: Record<string, any>, data: Uint8Array) {
     this.wasm = wasm;
     this.wasm.decoder_init();
 
@@ -26,7 +38,7 @@ export default class Decoder {
    * @param {number} position Position to seek in seconds.
    * @returns {number} The current position in seconds.
    */
-  seek(position) {
+  seek(position: number): number {
     this.wasm.decoder_seek(position);
     return this.currentTime();
   }
@@ -36,7 +48,7 @@ export default class Decoder {
    * @param {number} duration seconds to decode.
    * @returns {object} Decoded results.
    */
-  decode(duration) {
+  decode(duration: number): DecodeResult {
     const startTime = this.currentTime();
     this.wasm.decoder_decode(duration);
     const pcm = new Int16Array(
@@ -61,7 +73,15 @@ export default class Decoder {
   /**
    * @returns {number} The current position in seconds.
    */
-  currentTime() {
+  currentTime(): number {
     return this.wasm.decoder_current_time();
   }
+}
+
+export async function createDecoder(data: Uint8Array, wasmUrl?: string): Promise<Decoder> {
+  wasmUrl = wasmUrl || 'decoder.opt.wasm';
+  const res = await fetch(wasmUrl);
+  const buffer = await res.arrayBuffer();
+  let wasm = await WebAssembly.instantiate(buffer, {});
+  return new Decoder(wasm.instance.exports, data);
 }

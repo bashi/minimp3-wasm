@@ -1,4 +1,4 @@
-import Decoder from "./decoder.js";
+import { createDecoder } from './dist/minimp3-wasm.js';
 
 /**
  * @param {File} file
@@ -112,13 +112,6 @@ class DecodedSamplesPlayer {
   }
 }
 
-async function instantiateWasm() {
-  const res = await fetch("out/decoder.opt.wasm");
-  const buffer = await res.arrayBuffer();
-  const wasm = await WebAssembly.instantiate(buffer, {});
-  return wasm.instance.exports;
-}
-
 class App {
   constructor() {
     this.canvas = document.getElementById('wave-canvas');
@@ -180,8 +173,7 @@ class App {
     }
     this._setBarPosition(0);
 
-    const wasm = await instantiateWasm();
-    this.decoder = new Decoder(wasm, mp3);
+    this.decoder = await createDecoder(mp3, './dist/decoder.opt.wasm');
 
     this.decodeDurationRange.min = 1;
     this.decodeDurationRange.max = Math.min(60, this.decoder.duration);
@@ -256,8 +248,7 @@ class App {
 }
 
 async function main() {
-  const wasmInstance = await instantiateWasm();
-  const app = new App(wasmInstance);
+  const app = new App();
   window.app = app;
 }
 

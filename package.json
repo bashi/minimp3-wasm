@@ -1,0 +1,27 @@
+{
+  "name": "minimp3-wasm",
+  "description": "A tiny WebAssembly MP3 decoder",
+  "version": "0.1.0",
+  "scripts": {
+    "build": "tsc"
+  },
+  "collaborators": [
+    "Kenichi Ishibashi <ishibashi.kenichi@gmail.com>"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bashi/minimp3-wasm.git"
+  },
+  "license": "Apache-2.0",
+  "files": [
+    "dist/decoder.opt.wasm",
+    "dist/minimp3-wasm.d.ts",
+    "dist/minimp3-wasm.js"
+  ],
+  "main": "dist/minimp3-wasm.js",
+  "module": "dist/minimp3-wasm.js",
+  "types": "dist/minimp3-wasm.d.ts",
+  "devDependencies": {
+    "typescript": "^3.8.3"
+  }
+}

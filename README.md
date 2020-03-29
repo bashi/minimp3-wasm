@@ -5,11 +5,10 @@ A demo of compiling [minimp3](https://github.com/lieff/minimp3) to WebAssembly w
 ## Usage
 
 ```js
-import Decoder from './decoder.js';
+import { createDecoder } from './dist/minimp3-wasm.js';
 
 const mp3Data = /* Some Uint8Array */;
-const { instance } = await WebAssembly.instantiateStreaming(fetch('./out/decoder.opt.wasm'));
-const decoder = new Decoder(instance.exports, mp3Data);
+const decoder = await createDecoder(mp3Data, './dist/decoder.opt.wasm');
 
 decoder.seek(/*position_in_secounds=*/30);
 const results = decoder.decode(/*duration_in_seconds=*/10);
@@ -24,6 +23,8 @@ Prerequisites:
 
 ```sh
 $ make
+$ npm install
+$ npm run build
 ```
 
-The decoder wasm will be generated under `out/` directory.
+The decoder wasm and its bindings will be generated under `dist/` directory.
